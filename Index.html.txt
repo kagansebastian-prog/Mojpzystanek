@@ -1,24 +1,17 @@
 
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tablica rozkładu jazdy – Jasna Rola (Poznań)</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rozkład jazdy MPK Poznań (KiedyDojedzie API)</title>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Lato', sans-serif;
             width: 100%;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             background-color: #f5f5f5;
@@ -27,33 +20,48 @@
             background-color: #046637;
             color: white;
             padding: 1rem;
-            font-size: clamp(1.2rem, 5vw, 1.8rem);
-            font-weight: bold;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .search-container {
+            display: flex;
+            gap: 0.5rem;
             align-items: center;
-            flex-shrink: 0;
+        }
+        #stop-search {
+            padding: 0.5rem;
+            border: none;
+            border-radius: 4px;
+            flex-grow: 1;
+            font-size: 1rem;
+        }
+        #search-button {
+            padding: 0.5rem 1rem;
+            background-color: #FFD700;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
         }
         .time {
             background-color: black;
             color: #FFD700;
             padding: 0.5rem 1rem;
             font-family: 'Share Tech Mono', monospace;
-            font-size: clamp(1rem, 4vw, 1.4rem);
             border-radius: 4px;
+            align-self: flex-end;
         }
         .schedule {
             background-color: #f2f2f2;
             padding: 1rem;
             flex-grow: 1;
             overflow-y: auto;
-            max-height: calc(100vh - 80px);
         }
         .schedule-item {
             display: flex;
             align-items: center;
             padding: 0.8rem 0;
-            font-size: clamp(1rem, 4vw, 1.4rem);
             border-bottom: 1px solid #ddd;
         }
         .line-number {
@@ -65,84 +73,95 @@
             padding: 0.2rem 0.5rem;
             border-radius: 4px;
         }
-        .line-3 {
-            background-color: #2ecc71;
-        }
-        .line-10 {
-            background-color: #3498db;
-        }
-        .destination-time-container {
-            display: flex;
-            justify-content: space-between;
-            flex-grow: 1;
-            align-items: center;
-        }
-        .destination {
-            flex-grow: 1;
-            margin-right: 1rem;
-            font-size: clamp(0.9rem, 3.5vw, 1.2rem);
-        }
+        .line-3 { background-color: #2ecc71; }
+        .line-5 { background-color: #e74c3c; }
+        .line-6 { background-color: #9b59b6; }
+        .line-7 { background-color: #f39c12; }
+        .line-8 { background-color: #1abc9c; }
+        .line-9 { background-color: #34495e; }
+        .line-10 { background-color: #3498db; }
+        .line-11 { background-color: #e67e22; }
+        .line-12 { background-color: #7f8c8d; }
+        .line-13 { background-color: #d35400; }
+        .line-14 { background-color: #8e44ad; }
+        .line-15 { background-color: #c0392b; }
+        .line-16 { background-color: #27ae60; }
+        .line-17 { background-color: #16a085; }
+        .line-18 { background-color: #2980b9; }
+        .destination { flex-grow: 1; margin-right: 1rem; }
         .departure-time {
             font-weight: bold;
             min-width: 3.5rem;
             text-align: right;
-            font-size: clamp(0.9rem, 3.5vw, 1.2rem);
         }
-        .loading {
-            text-align: center;
-            padding: 1rem;
-            font-style: italic;
-            color: #666;
-        }
-        .error {
-            text-align: center;
-            padding: 1rem;
+        .delayed {
             color: #e74c3c;
             font-weight: bold;
         }
-        @media (max-width: 600px) {
-            .schedule-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
-                padding: 1rem 0;
-            }
-            .destination-time-container {
-                width: 100%;
-                flex-direction: row;
-                justify-content: space-between;
-            }
-            .line-number {
-                margin-right: 0;
-            }
-            .destination {
-                margin-right: 0;
-            }
+        .loading, .error {
+            text-align: center;
+            padding: 1rem;
+        }
+        .error { color: #e74c3c; }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: white;
+        }
+        .autocomplete-items div {
+            padding: 0.5rem;
+            cursor: pointer;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e9e9e9;
+        }
+        .autocomplete-active {
+            background-color: #046637 !important;
+            color: white;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <span>Jasna Rola</span>
+        <div class="search-container">
+            <input type="text" id="stop-search" placeholder="Wyszukaj przystanek (np. Jasna Rola)" autocomplete="off">
+            <button id="search-button">Szukaj</button>
+        </div>
         <div class="time" id="current-time">--:--</div>
     </div>
     <div class="schedule" id="schedule">
-        <div class="loading">Ładowanie rozkładu...</div>
+        <div class="loading">Wpisz nazwę przystanku.</div>
     </div>
 
     <script>
-        // Aktualizuje zegar
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('current-time').textContent =
-                `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        }
+        let currentStopName = null;
+        let departures = [];
 
-        // Pobiera dane z poznan-mpk-api
-        async function fetchDepartures(stopId) {
-            const url = `https://cors-anywhere.herokuapp.com/https://poznan-mpk-api.pl/api/v1/stops/${stopId}/departures`;
+        // Pobierz listę przystanków (przykładowe dane, można rozbudować)
+        const stops = [
+            { name: "Jasna Rola", apiName: "Jasna Rola" },
+            { name: "Rondo Żegierskie", apiName: "Rondo Żegierskie" },
+            { name: "Dworzec Zachodni", apiName: "Dworzec Zachodni" },
+            { name: "Plac Wolności", apiName: "Plac Wolności" },
+            { name: "Os. Sobieskiego", apiName: "Os. Sobieskiego" },
+            { name: "Franowo", apiName: "Franowo" },
+            { name: "Głogowska", apiName: "Głogowska" },
+            { name: "Rondo Kaponiera", apiName: "Rondo Kaponiera" }
+        ];
+
+        // Pobierz rozkład z KiedyDojedzie API
+        async function fetchDepartures(stopName) {
+            const url = `https://kiedydojedzie.pl/api/v1/stops/${encodeURIComponent(stopName)}/departures`;
             try {
-                const response = await fetch(url);
+                const response = await fetch(`https://cors-anywhere.herokuapp.com/${url}`);
                 if (!response.ok) throw new Error("Błąd pobierania danych");
                 return await response.json();
             } catch (error) {
@@ -151,69 +170,173 @@
             }
         }
 
-        // Przetwarza dane z API
-        function processDepartures(departures) {
-            if (!departures) return null;
+        // Autouzupełnianie wyszukiwarki
+        function setupAutocomplete() {
+            const input = document.getElementById('stop-search');
+            input.addEventListener('input', function() {
+                const val = this.value.toLowerCase();
+                closeAllLists();
+                if (!val) return false;
 
-            const now = new Date();
-            return departures
-                .filter(dep => dep.line === "3" || dep.line === "10") // Tylko linie 3 i 10
-                .map(dep => {
-                    const departureTime = new Date(dep.departureTime);
-                    const diffMinutes = Math.floor((departureTime - now) / 60000);
-                    return {
-                        line: dep.line,
-                        destination: dep.destination,
-                        time: Math.max(0, diffMinutes + (dep.delay || 0)) // Uwzględnij opóźnienie
-                    };
-                })
-                .sort((a, b) => a.time - b.time) // Sortuj po czasie
-                .slice(0, 5); // Wyświetl max 5 najbliższych
-        }
+                const matches = stops.filter(stop =>
+                    stop.name.toLowerCase().includes(val)
+                );
 
-        // Wyświetla rozkład na stronie
-        async function renderTrams() {
-            const stopId = 1054; // ID przystanku "Jasna Rola"
-            const scheduleElement = document.getElementById('schedule');
-            scheduleElement.innerHTML = '<div class="loading">Ładowanie rozkładu...</div>';
+                if (matches.length === 0) return false;
 
-            const departures = await fetchDepartures(stopId);
-            if (!departures) {
-                scheduleElement.innerHTML = '<div class="error">Nie udało się pobrać danych.</div>';
-                return;
-            }
+                const list = document.createElement('div');
+                list.setAttribute('id', 'autocomplete-list');
+                list.setAttribute('class', 'autocomplete-items');
+                this.parentNode.appendChild(list);
 
-            const trams = processDepartures(departures);
-            if (!trams || trams.length === 0) {
-                scheduleElement.innerHTML = '<div class="error">Brak odjazdów.</div>';
-                return;
-            }
+                matches.forEach(stop => {
+                    const item = document.createElement('div');
+                    item.innerHTML = `<strong>${stop.name}</strong>`;
+                    item.addEventListener('click', () => {
+                        input.value = stop.name;
+                        loadScheduleForStop(stop.apiName);
+                        closeAllLists();
+                    });
+                    list.appendChild(item);
+                });
+            });
 
-            scheduleElement.innerHTML = '';
-            trams.forEach(tram => {
-                const lineClass = tram.line === "3" ? 'line-3' : 'line-10';
-                const tramElement = document.createElement('div');
-                tramElement.className = 'schedule-item';
-                tramElement.innerHTML = `
-                    <div class="line-number ${lineClass}">${tram.line}</div>
-                    <div class="destination-time-container">
-                        <span class="destination">${tram.destination}</span>
-                        <span class="departure-time">${tram.time} min</span>
-                    </div>
-                `;
-                scheduleElement.appendChild(tramElement);
+            input.addEventListener('keydown', function(e) {
+                const list = document.getElementById('autocomplete-list');
+                if (list) {
+                    const items = list.getElementsByTagName('div');
+                    if (e.keyCode === 40) { // STRZAŁKA W DÓŁ
+                        let current = list.getElementsByClassName('autocomplete-active')[0];
+                        if (current) current.classList.remove('autocomplete-active');
+                        if (current && current.nextSibling) {
+                            current.nextSibling.classList.add('autocomplete-active');
+                        } else if (items.length > 0) {
+                            items[0].classList.add('autocomplete-active');
+                        }
+                    } else if (e.keyCode === 38) { // STRZAŁKA W GÓRĘ
+                        let current = list.getElementsByClassName('autocomplete-active')[0];
+                        if (current) current.classList.remove('autocomplete-active');
+                        if (current && current.previousSibling) {
+                            current.previousSibling.classList.add('autocomplete-active');
+                        }
+                    } else if (e.keyCode === 13) { // ENTER
+                        e.preventDefault();
+                        if (list.getElementsByClassName('autocomplete-active')[0]) {
+                            list.getElementsByClassName('autocomplete-active')[0].click();
+                        }
+                    }
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (e.target.id !== 'stop-search') closeAllLists();
             });
         }
 
-        // Odświeża dane co 30 sekund
+        function closeAllLists() {
+            const lists = document.getElementsByClassName('autocomplete-items');
+            for (let i = 0; i < lists.length; i++) {
+                lists[i].parentNode.removeChild(lists[i]);
+            }
+        }
+
+        // Pobierz i wyświetl rozkład
+        async function loadScheduleForStop(stopName) {
+            currentStopName = stopName;
+            document.getElementById('schedule').innerHTML = `
+                <div class="loading">Ładowanie rozkładu dla ${stopName}...</div>
+            `;
+
+            const data = await fetchDepartures(stopName);
+            if (!data || !data.departures) {
+                document.getElementById('schedule').innerHTML = `
+                    <div class="error">Nie udało się pobrać danych dla ${stopName}.</div>
+                `;
+                return;
+            }
+
+            departures = data.departures;
+            renderTrams();
+        }
+
+        // Wyświetl rozkład
+        function renderTrams() {
+            const now = new Date();
+            const scheduleElement = document.getElementById('schedule');
+
+            if (departures.length === 0) {
+                scheduleElement.innerHTML = `
+                    <div class="loading">Brak odjazdów dla ${currentStopName}.</div>
+                `;
+                return;
+            }
+
+            // Przetwórz dane: oblicz minuty do odjazdu
+            const trams = departures
+                .map(dep => {
+                    const depTime = new Date(dep.time);
+                    const diffMinutes = Math.floor((depTime - now) / 60000);
+                    return {
+                        line: dep.route.shortName,
+                        destination: dep.route.direction,
+                        time: Math.max(0, diffMinutes),
+                        delayed: dep.delay > 0
+                    };
+                })
+                .filter(dep => dep.time >= 0)
+                .sort((a, b) => a.time - b.time)
+                .slice(0, 10);
+
+            scheduleElement.innerHTML = `
+                <div class="schedule-item" style="font-weight: bold; background-color: #e9e9e9;">
+                    <div style="flex-grow: 1;">Przystanek: ${currentStopName}</div>
+                </div>
+                ${trams.map(tram => `
+                    <div class="schedule-item">
+                        <div class="line-number line-${tram.line}">${tram.line}</div>
+                        <div class="destination-time-container" style="display: flex; justify-content: space-between; flex-grow: 1;">
+                            <span class="destination">${tram.destination}</span>
+                            <span class="departure-time ${tram.delayed ? 'delayed' : ''}">
+                                ${tram.time} min ${tram.delayed ? '(opóźnienie)' : ''}
+                            </span>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // Obsługa przycisku "Szukaj"
+        document.getElementById('search-button').addEventListener('click', () => {
+            const input = document.getElementById('stop-search');
+            const stopName = input.value;
+            if (!stopName) return;
+
+            const stop = stops.find(s => s.name.toLowerCase() === stopName.toLowerCase());
+            if (stop) {
+                loadScheduleForStop(stop.apiName);
+            } else {
+                document.getElementById('schedule').innerHTML = `
+                    <div class="error">Nie znaleziono przystanku "${stopName}".</div>
+                `;
+            }
+        });
+
+        // Aktualizuje zegar
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-time').textContent =
+                `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        }
+
+        // Odświeża co 30 sekund
         setInterval(() => {
             updateClock();
-            renderTrams();
+            if (departures.length > 0) renderTrams();
         }, 30000);
 
-        // Pierwsze uruchomienie
+        // Inicjalizacja
+        setupAutocomplete();
         updateClock();
-        renderTrams();
     </script>
 </body>
 </html>
