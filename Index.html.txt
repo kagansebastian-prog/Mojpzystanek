@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rozkład jazdy MPK Poznań (KiedyDojedzie API)</title>
+    <title>Rozkład jazdy MPK Poznań (Zbiorkom.live)</title>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -142,30 +141,47 @@
     </div>
 
     <script>
-        let currentStopName = null;
-        let departures = [];
-
-        // Pobierz listę przystanków (przykładowe dane, można rozbudować)
+        // Lista przystanków (przykładowe dane)
         const stops = [
-            { name: "Jasna Rola", apiName: "Jasna Rola" },
-            { name: "Rondo Żegierskie", apiName: "Rondo Żegierskie" },
-            { name: "Dworzec Zachodni", apiName: "Dworzec Zachodni" },
-            { name: "Plac Wolności", apiName: "Plac Wolności" },
-            { name: "Os. Sobieskiego", apiName: "Os. Sobieskiego" },
-            { name: "Franowo", apiName: "Franowo" },
-            { name: "Głogowska", apiName: "Głogowska" },
-            { name: "Rondo Kaponiera", apiName: "Rondo Kaponiera" }
+            { name: "Jasna Rola", urlName: "Jasna-Rola" },
+            { name: "Rondo Żegierskie", urlName: "Rondo-Żegierskie" },
+            { name: "Dworzec Zachodni", urlName: "Dworzec-Zachodni" },
+            { name: "Plac Wolności", urlName: "Plac-Wolności" },
+            { name: "Os. Sobieskiego", urlName: "Os.-Sobieskiego" },
+            { name: "Franowo", urlName: "Franowo" },
+            { name: "Głogowska", urlName: "Głogowska" },
+            { name: "Rondo Kaponiera", urlName: "Rondo-Kaponiera" }
         ];
 
-        // Pobierz rozkład z KiedyDojedzie API
-        async function fetchDepartures(stopName) {
-            const url = `https://kiedydojedzie.pl/api/v1/stops/${encodeURIComponent(stopName)}/departures`;
+        // Pobierz rozkład ze strony Zbiorkom.live
+        async function fetchDeparturesFromZbiorkom(stopUrlName) {
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+            const targetUrl = `https://zbiorkom.live/przystanek/${stopUrlName}`;
+
             try {
-                const response = await fetch(`https://cors-anywhere.herokuapp.com/${url}`);
-                if (!response.ok) throw new Error("Błąd pobierania danych");
-                return await response.json();
+                const response = await fetch(proxyUrl + targetUrl);
+                const html = await response.text();
+
+                // Parsuj HTML (uproszczony przykład)
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Przykładowe selektory (trzeba dostosować do struktury strony!)
+                const departures = [];
+                const rows = doc.querySelectorAll('.departure-row'); // Zmień na rzeczywisty selektor!
+                rows.forEach(row => {
+                    const line = row.querySelector('.line-number')?.textContent.trim() || '?';
+                    const time = row.querySelector('.departure-time')?.textContent.trim() || '--:--';
+                    const destination = row.querySelector('.destination')?.textContent.trim() || 'Nieznany';
+                    const delayText = row.querySelector('.delay')?.textContent.trim() || '0';
+                    const delay = parseInt(delayText.replace('min', '').trim()) || 0;
+
+                    departures.push({ line, time, destination, delay });
+                });
+
+                return departures;
             } catch (error) {
-                console.error("Błąd:", error);
+                console.error("Błąd pobierania danych:", error);
                 return null;
             }
         }
@@ -194,13 +210,14 @@
                     item.innerHTML = `<strong>${stop.name}</strong>`;
                     item.addEventListener('click', () => {
                         input.value = stop.name;
-                        loadScheduleForStop(stop.apiName);
+                        loadScheduleForStop(stop.urlName);
                         closeAllLists();
                     });
                     list.appendChild(item);
                 });
             });
 
+            // Obsługa klawiatury (strzałki, Enter)
             input.addEventListener('keydown', function(e) {
                 const list = document.getElementById('autocomplete-list');
                 if (list) {
@@ -241,32 +258,33 @@
         }
 
         // Pobierz i wyświetl rozkład
-        async function loadScheduleForStop(stopName) {
-            currentStopName = stopName;
+        async function loadScheduleForStop(stopUrlName) {
+            const stop = stops.find(s => s.urlName === stopUrlName);
+            if (!stop) return;
+
             document.getElementById('schedule').innerHTML = `
-                <div class="loading">Ładowanie rozkładu dla ${stopName}...</div>
+                <div class="loading">Ładowanie rozkładu dla ${stop.name}...</div>
             `;
 
-            const data = await fetchDepartures(stopName);
-            if (!data || !data.departures) {
+            const departures = await fetchDeparturesFromZbiorkom(stopUrlName);
+            if (!departures) {
                 document.getElementById('schedule').innerHTML = `
-                    <div class="error">Nie udało się pobrać danych dla ${stopName}.</div>
+                    <div class="error">Nie udało się pobrać danych dla ${stop.name}.</div>
                 `;
                 return;
             }
 
-            departures = data.departures;
-            renderTrams();
+            renderTrams(departures, stop.name);
         }
 
         // Wyświetl rozkład
-        function renderTrams() {
+        function renderTrams(departures, stopName) {
             const now = new Date();
             const scheduleElement = document.getElementById('schedule');
 
             if (departures.length === 0) {
                 scheduleElement.innerHTML = `
-                    <div class="loading">Brak odjazdów dla ${currentStopName}.</div>
+                    <div class="loading">Brak odjazdów dla ${stopName}.</div>
                 `;
                 return;
             }
@@ -274,12 +292,17 @@
             // Przetwórz dane: oblicz minuty do odjazdu
             const trams = departures
                 .map(dep => {
-                    const depTime = new Date(dep.time);
+                    const [hours, minutes] = dep.time.split(':').map(Number);
+                    const depTime = new Date();
+                    depTime.setHours(hours, minutes, 0);
+
                     const diffMinutes = Math.floor((depTime - now) / 60000);
+                    const totalTime = Math.max(0, diffMinutes + dep.delay);
+
                     return {
-                        line: dep.route.shortName,
-                        destination: dep.route.direction,
-                        time: Math.max(0, diffMinutes),
+                        line: dep.line,
+                        destination: dep.destination,
+                        time: totalTime,
                         delayed: dep.delay > 0
                     };
                 })
@@ -289,7 +312,7 @@
 
             scheduleElement.innerHTML = `
                 <div class="schedule-item" style="font-weight: bold; background-color: #e9e9e9;">
-                    <div style="flex-grow: 1;">Przystanek: ${currentStopName}</div>
+                    <div style="flex-grow: 1;">Przystanek: ${stopName}</div>
                 </div>
                 ${trams.map(tram => `
                     <div class="schedule-item">
@@ -313,7 +336,7 @@
 
             const stop = stops.find(s => s.name.toLowerCase() === stopName.toLowerCase());
             if (stop) {
-                loadScheduleForStop(stop.apiName);
+                loadScheduleForStop(stop.urlName);
             } else {
                 document.getElementById('schedule').innerHTML = `
                     <div class="error">Nie znaleziono przystanku "${stopName}".</div>
@@ -331,7 +354,6 @@
         // Odświeża co 30 sekund
         setInterval(() => {
             updateClock();
-            if (departures.length > 0) renderTrams();
         }, 30000);
 
         // Inicjalizacja
